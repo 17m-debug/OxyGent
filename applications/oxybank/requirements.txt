@@ -1,0 +1,11 @@
+fastapi==0.121.3
+llama-index==0.14.8
+elasticsearch==8.19.2
+loguru==0.7.3
+orjson==3.11.4
+pydantic-settings==2.6.1
+python-multipart==0.0.9
+pyvearch==3.5.5
+uvicorn==0.38.0
+openpyxl==3.1.5
+xlrd==2.0.2

@@ -21,6 +21,7 @@
     <script src="./js/cascader.js?time=2"></script>
     <script src="./js/upload.js?time=2"></script>
     <script src="./js/message.js?time=2"></script>
+    <script src="./js/rating_widget.js?time=2"></script>
 </head>
 <body>
 <div class="header">
@@ -1038,10 +1039,19 @@
         if (!trace_id || !li || li.length === 0) {
             return;
         }
-        if (li.find(".message-rating-container").length > 0) {
+        if (li.find(".rating-widget").length > 0) {
             return;
         }
-        li.append(create_rating_container(trace_id));
+        // 使用新的评分组件
+        if (typeof attachRatingWidget === 'function') {
+            attachRatingWidget(li, trace_id);
+        } else {
+            // 向后兼容：使用旧的评分组件
+            if (li.find(".message-rating-container").length > 0) {
+                return;
+            }
+            li.append(create_rating_container(trace_id));
+        }
     }
 
     function send_msg_to_chatbox(msg, name = "user", at = "", scroll_top = true, trace_id = "") {

@@ -1459,3 +1459,13 @@ async def optimize_prompt(request: PromptOptimizeRequest):
         error_msg = traceback.format_exc()
         logger.error(error_msg)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# SFT Rating API Routes
+# =============================================================================
+
+from .web.rating_api import rating_router as sft_rating_router
+
+# Include SFT rating routes
+router.include_router(sft_rating_router, prefix="/api")

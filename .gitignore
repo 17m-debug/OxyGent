@@ -242,3 +242,9 @@ pyproject.toml*
 cache_dir/
 local_file/
 deployment/
+
+# SFT 飞轮 & RAG 运行时数据
+vector_store/
+knowledge_data/
+sft_data/
+lora_output/

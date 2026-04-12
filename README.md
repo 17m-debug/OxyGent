@@ -1,222 +1,266 @@
-<!-- Copyright 2022 JD Co.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this project except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License. -->
-
-[English](./README.md) | [中文](./README_zh.md)
-
+# OxyGent-SFT: Self-Evolving Multi-Agent System with SFT Flywheel & RAG
 
 <p align="center">
-  <a href="https://github.com/jd-opensource/OxyGent/pulls">
-    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" alt="PRs Welcome">
+  <a href="https://github.com/jd-opensource/OxyGent">
+    <img src="https://img.shields.io/badge/Upstream-jd--opensource/OxyGent-blue.svg" alt="upstream"/>
   </a>
   <a href="https://github.com/jd-opensource/OxyGent/blob/v4/LICENSE">
     <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="license"/>
   </a>
-  <a href="https://pypi.org/project/oxygent/">
-    <img src="https://img.shields.io/pypi/v/oxygent.svg?logo=pypi&logoColor=white" alt="pip"/>
-  </a>
+</p>
 
-<html>
-    <h2 align="center">
-      <img src="https://storage.jd.com/ai-gateway-routing/prod_data/oxygent_github_images/banner.jpg" width="1256"/>
-    </h2>
-    <h3 align="center">
-      An advanced Python framework that empowers developers to quickly build production-ready intelligent systems. 
-    </h3>
-    <h3 align="center">
-      Visit our website:
-      <a href="http://oxygent.jd.com">OxyGent</a>
-      ｜Open Source:
-      <a href="https://github.com/jd-opensource/OxyGent">Python</a>
-      or
-      <a href="https://github.com/jd-opensource/JDOxyGent4J">Java</a>
-    </h3>
-</html>
+> **本项目基于京东开源多智能体框架 [OxyGent](https://github.com/jd-opensource/OxyGent) 进行扩展。** OxyGent 将工具、模型、智能体统一为可插拔的原子算子（Oxy），支持模块化组装、动态规划与弹性扩展。本项目在此基础上构建了完整的 SFT 飞轮闭环与 RAG 知识增强系统，使智能体具备自我迭代进化能力。
 
-## 1. Project Overview
-**OxyGent** is an open-source framework that unifies tools, models, and agents into modular Oxy. Empowering developers with transparent, end-to-end pipelines, OxyGent makes building, running, and evolving multi-agent systems seamless and infinitely extensible.
+---
 
-## 2. Core Features
-🏎️ **Efficient Development**
-- OxyGent is a modular multi-agent framework that lets you build, deploy, and evolve AI teams with unprecedented efficiency. Its standardized Oxy components snap together like LEGO bricks, enabling rapid assembly of agents while supporting hot-swapping and cross-scenario reuse - all through clean Python interfaces without messy configs.
+## 项目动机
 
-🤝 **Intelligent Collaboration**
-- The framework supercharges collaboration with dynamic planning paradigms, where agents intelligently decompose tasks, negotiate solutions, and adapt to changes in real-time. Unlike rigid workflow systems, OxyGent's agents handle emergent challenges naturally while maintaining full auditability of every decision.
+原版 OxyGent 提供了强大的多智能体协作框架，但存在两个关键缺口：
 
-🕸️ **Elastic Architecture**
-- Under the hood, an elastic architecture supports any agent topology- from simple ReAct to complex hybrid planning patterns. Automated dependency mapping and visual debugging tools make it easy to optimize performance across distributed systems.
+1. **没有反馈闭环**：智能体在线运行后，无法从用户反馈中学习，模型无法自我进化
+2. **RAG 仅有框架定义**：`RAGAgent` 类存在，但缺少完整的知识库构建、向量化存储与检索实现
 
-🔁 **Continuous Evolution**
-- Every interaction becomes a learning opportunity - thanks to built-in evaluation engines that auto-generate training data. Your agents continuously improve through knowledge feedback loops while maintaining full transparency.
+本项目围绕这两个缺口，构建了 **SFT 飞轮** 和 **RAG 知识增强** 两大系统，形成从推理到进化的完整闭环。
 
-📈 **Scalability**
-- Scaling follows Metcalfe's Law- OxyGent's distributed scheduler enables linear cost growth while delivering exponential gains in collaborative intelligence. The system effortlessly handles domain-wide optimization and real-time decision making at any scale.
+---
 
-The latest version of OxyGent (July 15, 2025) in the [GAIA](https://huggingface.co/spaces/gaia-benchmark/leaderboard) get 59.14 points, and current top opensource system OWL gets 60.8 points.
+## 核心贡献
 
-![](https://storage.jd.com/ai-gateway-routing/prod_data/oxygent_github_images/points.png)
+### 一、SFT 飞轮闭环系统
 
-## 3. Framework Core Classes
-![](https://storage.jd.com/ai-gateway-routing/prod_data/oxygent_github_images/structure.png)
+构建了自我迭代的 SFT 飞轮，使智能体能够从用户反馈中持续学习：
 
-## 4. Feature Highlight
-**For Developers**: Focus on business logic without reinventing the wheel.
+```
+┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
+│ 智能体   │────▶│ 人工打分 │────▶│ 数据提取 │────▶│ LoRA微调 │
+│ 在线运行 │     │ 评分系统 │     │ 自动评分 │     │ 模型训练 │
+└──────────┘     └──────────┘     └──────────┘     └──────────┘
+      ▲                                                 │
+      └─────────────────────────────────────────────────┘
+                    微调后模型重新部署
+```
 
-**For Enterprises**: Replace siloed AI systems with a unified framework, reducing communication overhead.
+#### 1.1 评分系统（Rating System）
 
-**For Users**: Experience seamless teamwork from an intelligent agent ecosystem.
+**后端 API**（`oxygent/web/rating_api.py`）：
 
-## 5. Quick Start
-### Step 1: Create and activate a python environment
-- Method 1: conda
-   ```bash
-   conda create -n oxy_env python==3.10
-   conda activate oxy_env
-   ```
-- Method 2: uv
-   ```bash
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   uv python install 3.10 
-   uv venv .venv --python 3.10
-   source .venv/bin/activate
-   ```
-### Step 2: Install the required python package
-- Method 1: conda
-   ```bash
-   pip install oxygent
-   ```
-- Method 2: uv
-   ```bash
-   uv pip install oxygent
-   ```
-- Method 3: set develop environment
-   ```bash
-   git clone https://github.com/jd-opensource/OxyGent.git
-   cd OxyGent
-   pip install -r requirements.txt # or in uv
-   brew install coreutils # maybe essential
-   ```
-### Step 3: Node.js Environment (if using MCP)
-- Download and install **[Node.js](https://nodejs.org)**
+| 接口 | 方法 | 功能 |
+|------|------|------|
+| `/api/rate` | POST | 提交评分（1-5分 + 多维度评分 + 评论） |
+| `/api/rate/{trace_id}` | GET | 查询指定 trace 的评分记录 |
+| `/api/ratings/stats` | GET | 聚合统计（总数、均分、分布） |
 
-### Step 4: Write a sample python script
-- demo.py
-   ```python
-   import os
-   from oxygent import MAS, Config, oxy, preset_tools
+**前端组件**（`oxygent/web/js/rating_widget.js`）：
 
-   Config.set_agent_llm_model("default_llm")
+- 五星评分，悬停动画效果
+- 快捷标签按钮组：回答准确 / 步骤清晰 / 信息过时 / 遗漏关键点 / 工具调用错误 / 超出预期
+- 可折叠评论输入框，评分 ≤ 2 分时自动展开
+- 加载中 / 已提交确认状态
+- 仅在 `type=="answer"` 消息后显示
+- 挂载时自动查询历史评分并回显
 
-   oxy_space = [
-      oxy.HttpLLM(
-         name="default_llm",
-         api_key=os.getenv("DEFAULT_LLM_API_KEY"),
-         base_url=os.getenv("DEFAULT_LLM_BASE_URL"),
-         model_name=os.getenv("DEFAULT_LLM_MODEL_NAME"),
-      ),
-      preset_tools.time_tools,
-      oxy.ReActAgent(
-         name="time_agent",
-         desc="A tool that can query the time",
-         tools=["time_tools"],
-      ),
-      preset_tools.file_tools,
-      oxy.ReActAgent(
-         name="file_agent",
-         desc="A tool that can operate the file system",
-         tools=["file_tools"],
-      ),
-      preset_tools.math_tools,
-      oxy.ReActAgent(
-         name="math_agent",
-         desc="A tool that can perform mathematical calculations.",
-         tools=["math_tools"],
-      ),
-      oxy.ReActAgent(
-         is_master=True,
-         name="master_agent",
-         sub_agents=["time_agent", "file_agent", "math_agent"],
-      ),
-   ]
+#### 1.2 训练数据提取流水线（`tools/extract_training_data.py`）
 
-   async def main():
-      async with MAS(oxy_space=oxy_space) as mas:
-         await mas.start_web_service(
-            first_query="What time is it now? Please save it into time.txt."
-         )
+**三级混合打分体系**：
 
-   if __name__ == "__main__":
-      import asyncio
-      asyncio.run(main())
-   ```
+| 打分方式 | 成本 | 触发条件 | 权重 |
+|---------|------|---------|------|
+| 人工评分 | 高 | 用户主动评分 | 100%（优先） |
+| 规则打分 | 零 | 始终执行 | 40% |
+| LLM 裁判打分 | 中 | 规则分 ≥ 1.5 且配置了 judge-api | 60% |
 
-### Step 5: Set Environment Variables
-- Method 1: Declare in terminal
-   ```bash
-   export DEFAULT_LLM_API_KEY="your_api_key"
-   export DEFAULT_LLM_BASE_URL="your_base_url"
-   export DEFAULT_LLM_MODEL_NAME="your_model_name"  
-   ```
-- Method 2: Create a .env file
-   ```bash
-   DEFAULT_LLM_API_KEY="your_api_key"
-   DEFAULT_LLM_BASE_URL="your_base_url"
-   DEFAULT_LLM_MODEL_NAME="your_model_name"
-   ```
-### Step 6: Run the example
-- Start the multi-agent system
-   ```bash
-   python demo.py
-   ```
-### Step 7: View the output
-- ![](https://storage.jd.com/ai-gateway-routing/prod_data/oxygent_github_images/vision.png)
+**规则打分扣分项**：
+- 无最终回答 → 0.5 分
+- 回答长度 < 15 字 → 扣 2.0
+- 包含失败关键词 → 扣 1.5
+- 工具执行失败率 → 最多扣 2.0
+- 工具调用次数 > 15 → 扣 1.5
 
-## 6. Contributing
-There are several ways you can contribute to OxyGent:
+**输出格式**：ChatML 训练格式，保留完整工具调用链，自动划分 train/val/test 集。
 
-1. Reporting Issues (Bugs & Errors)
-2. Suggesting Enhancements
-3. Improving Documentation
-    - Fork the repository
-    - Add your view in document
-    - Send your pull request
-4. Writing Code
-    - Fork the repository
-    - Create a new branch
-    - Add your feature or improvement
-    - Send your pull request
+#### 1.3 LoRA 微调训练（`tools/lora_finetune.py`）
 
-We appreciate all kinds of contributions! 🎉🎉🎉
-If you have problems about development, please check our document: **[Document](http://oxygent.jd.com/docs/)**
+三个子命令：
 
-## 7. Community & Support
-If you encounter any issues along the way, you are welcomed to submit reproducible steps and log snippets in the project's Issues area, or contact the OxyGent Core team directly via your internal Slack.
+```bash
+# 训练（默认 QLoRA 4bit）
+python tools/lora_finetune.py train \
+  --base-model Qwen/Qwen2.5-7B-Instruct \
+  --data-dir ./sft_data \
+  --output-dir ./lora_output
 
-Welcome to contact us:
+# 合并适配器到基础模型
+python tools/lora_finetune.py merge \
+  --base-model Qwen/Qwen2.5-7B-Instruct \
+  --adapter-path ./lora_output \
+  --output-path ./merged_model
 
-<div align="center">
-  <img src="https://pfst.cf2.poecdn.net/base/image/b1e96084336a823af7835f4fe418ff49da6379570f0c32898de1ffe50304d564?w=1760&h=2085&pmaid=425510216" alt="contact" width="50%" height="50%">
-</div>
+# 部署微调后的模型
+python tools/lora_finetune.py deploy \
+  --model-path ./merged_model
+```
 
+**训练配置**：
+- 默认 QLoRA 4bit（BitsAndBytesConfig + NF4 量化）
+- LoRA rank=16, alpha=32, dropout=0.05
+- 目标模块：q_proj, k_proj, v_proj, o_proj
+- 支持 bf16 全精度模式（`--no-4bit`）
+- 支持从已有 adapter 继续训练（`--resume-adapter`）
 
-## 8. About the Contributors
-Thanks to all the following [developers](https://github.com/jd-opensource/OxyGent/graphs/contributors) who have contributed to OxyGent.
-<a href="https://github.com/jd-opensource/OxyGent/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=jd-opensource/OxyGent" />
-</a>
+---
 
-## 9. License
-[Apache License]( ./LICENSE.md)
+### 二、RAG 知识增强系统
 
-#### OxyGent is provided by Oxygen JD.com 
-#### Thanks for your Contributions!
+补全了 OxyGent `RAGAgent` 从数据采集到检索增强的完整链路：
+
+```
+┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
+│ 网页爬虫 │────▶│ 智能分块 │────▶│ LLM API  │────▶│ OxyGent  │
+│ (crawl)  │     │ (chunk)  │     │ Embedding│     │ RAGAgent │
+└──────────┘     └──────────┘     └──────────┘     └──────────┘
+```
+
+#### 2.1 知识采集（`tools/crawl_jd_culture.py`）
+
+- 异步爬取京东官网企业文化页面
+- 智能文本分块：句号/问号/感叹号断句 + 滑动窗口重叠（500 字/块，50 字重叠）
+- 输出结构化知识块 JSON
+
+#### 2.2 向量化存储（`tools/vectorize_knowledge.py`）
+
+- **默认使用 OpenAI Embedding API**（`text-embedding-3-small`，1536 维）
+- 支持切换到本地模型（`--local-model BAAI/bge-small-zh-v1.5`）
+- 本地向量存储：`index.json`（元数据）+ `vectors.npy`（向量矩阵）
+- 余弦相似度检索，支持 Top-K 排序
+
+```bash
+python tools/vectorize_knowledge.py \
+  --chunks-file knowledge_data/knowledge_chunks.json \
+  --output-dir vector_store \
+  --api-key $OPENAI_API_KEY \
+  --test
+```
+
+#### 2.3 RAG 集成（`tools/rag_demo.py`）
+
+```python
+from oxygent import MAS, RAGAgent, OpenAILLM
+from tools.rag_demo import retrieve_jd_knowledge
+
+llm = OpenAILLM(name="default_llm", model_name="gpt-4o-mini")
+
+rag_agent = RAGAgent(
+    name="jd_assistant",
+    llm_model="default_llm",
+    prompt="根据知识库回答：${knowledge}",
+    func_retrieve_knowledge=retrieve_jd_knowledge
+)
+
+async with MAS(name="rag_demo", oxy_space=[llm, rag_agent]) as mas:
+    response = await mas.chat_with_agent(payload={"query": "京东的企业文化是什么？"})
+```
+
+#### 2.4 一键部署（`tools/setup_jd_rag.py`）
+
+```bash
+python tools/setup_jd_rag.py --api-key $OPENAI_API_KEY
+```
+
+---
+
+## 项目结构（新增部分）
+
+```
+OxyGent/
+├── oxygent/
+│   ├── web/
+│   │   ├── rating_api.py           # 评分系统后端 API
+│   │   └── js/
+│   │       └── rating_widget.js    # 前端评分组件
+│   └── routes.py                   # 挂载评分路由
+├── tools/
+│   ├── crawl_jd_culture.py         # 京东企业文化爬虫
+│   ├── vectorize_knowledge.py      # 知识库向量化（OpenAI API / 本地模型）
+│   ├── rag_demo.py                 # RAG 集成示例
+│   ├── setup_jd_rag.py             # RAG 一键部署
+│   ├── extract_training_data.py    # 训练数据提取流水线
+│   └── lora_finetune.py            # LoRA 微调（train/merge/deploy）
+└── requirements.txt                # 更新后的依赖
+```
+
+---
+
+## 与原版 OxyGent 对比
+
+| 维度 | 原版 OxyGent | 本项目 |
+|------|-------------|--------|
+| 多智能体推理 | ✅ | ✅ 不变 |
+| 用户反馈 | ❌ 无评分系统 | ✅ 五星评分 + 标签 + 评论 |
+| 训练数据提取 | ❌ 无 | ✅ ES → ChatML + 混合打分 |
+| 模型微调 | ❌ 无 | ✅ QLoRA 训练 + 合并 + 部署 |
+| RAG 实现 | ⚠️ 仅有 RAGAgent 框架 | ✅ 完整链路：爬取→分块→向量化→检索 |
+| Embedding | ❌ 无实现 | ✅ OpenAI API / 本地模型双模式 |
+| 自我进化 | ❌ 无闭环 | ✅ 推理→评分→数据→训练→部署→循环 |
+
+---
+
+## 快速开始
+
+### 环境准备
+
+```bash
+pip install -r requirements.txt
+```
+
+### RAG 知识增强
+
+```bash
+# 设置 API Key
+export OPENAI_API_KEY=sk-xxx
+
+# 一键部署
+python tools/setup_jd_rag.py --api-key $OPENAI_API_KEY
+
+# 或分步执行
+python tools/crawl_jd_culture.py
+python tools/vectorize_knowledge.py --chunks-file knowledge_data/knowledge_chunks.json --output-dir vector_store --api-key $OPENAI_API_KEY --test
+python tools/rag_demo.py --mode simple
+```
+
+### SFT 飞轮
+
+```bash
+# 1. 启动 OxyGent 服务（评分 API 自动挂载）
+python demo.py
+
+# 2. 在前端对智能体回答进行评分
+
+# 3. 提取训练数据
+python tools/extract_training_data.py \
+  --app my_app \
+  --es http://localhost:9200 \
+  --out ./sft_data \
+  --min-score 3.5
+
+# 4. LoRA 微调
+python tools/lora_finetune.py train \
+  --base-model Qwen/Qwen2.5-7B-Instruct \
+  --data-dir ./sft_data \
+  --output-dir ./lora_output
+
+# 5. 合并 & 部署
+python tools/lora_finetune.py merge --base-model ... --adapter-path ./lora_output --output-path ./merged
+python tools/lora_finetune.py deploy --model-path ./merged
+```
+
+---
+
+## 致谢
+
+- [OxyGent](https://github.com/jd-opensource/OxyGent) — 京东开源的多智能体协作框架，本项目的基础
+- [PEFT](https://github.com/huggingface/peft) — HuggingFace 参数高效微调库
+- [TRL](https://github.com/huggingface/trl) — HuggingFace 强化学习训练库
+
+## 许可证
+
+本项目遵循 [Apache License 2.0](./LICENSE)，与原版 OxyGent 保持一致。
